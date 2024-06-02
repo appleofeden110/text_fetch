@@ -8,7 +8,10 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"text_fetch/file_create"
+	"text_fetch/text_analysis"
 	"text_fetch/tg_parse"
+	"text_fetch/yt_parse"
 )
 
 var (
@@ -42,11 +45,22 @@ func main() {
 	check(err, "choice read error")
 	switch choice {
 	case "T":
-		err = tg_parse.TelegramParse(ctx, tg_api_id, tg_api_hash)
+		msgs, err := tg_parse.TelegramParse(ctx, tg_api_id, tg_api_hash)
 		check(err, "tg_parse")
+		jBytes, errJ := tg_parse.MarshalJSON(msgs)
+		check(errJ, "MARSHAL JSON")
+		err = file_create.JSON_parse("test_tg", jBytes)
+		check(err, "json_parse tg")
+		err = text_analysis.JsonPrepoc("test_tg")
+		check(err, "json_preproc tg")
+		err = text_analysis.TextAnalysis("test_tg")
+		check(err, "text_analysis tg")
 		break
 	case "Y":
-		//err = yt_parse.YoutubeParse(ctx)
+		jsonBytes, err := yt_parse.YoutubeParse(ctx)
+		check(err, "youtube parse")
+		err = file_create.JSON_parse("test_yt", jsonBytes)
+		check(err, "json_parse")
 		break
 	default:
 		check(errors.New("Неправильний вибір, напишіть T або Y для вибора між Телеграмом та Ютубом"), "mistype of type of parse")

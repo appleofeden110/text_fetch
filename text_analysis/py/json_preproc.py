@@ -21,14 +21,7 @@ texts = ''
 for i in range(0, len(obj['messages'])):
     if 'text' in obj['messages'][i].keys():
         message = obj['messages'][i]['text']
-        if isinstance(message, list):
-            for i in range(0, len(message)):
-                if isinstance(message[i], dict):
-                    texts += '\n'+ message[i]['text']
-                else:
-                    texts += '\n' + message[i]
-        else:
-            texts += '\n' + message
+        texts += '\n' + message
             
 texts = texts.replace('.', ' ').replace('\n', ' ').replace(',', ' ')
 
