@@ -40,7 +40,7 @@ func main() {
 		return
 	}
 
-	fmt.Print("Яка із платформ вас цікавить телеграм чи ютуб?(T/Y):")
+	fmt.Print("Яка із платформ вас цікавить Telegram (T), Youtube (Y) чи проаналізувати вже існуючий txt файл (A)?:")
 	var choice string
 	_, err = fmt.Scanln(&choice)
 	check(err, "choice read error")
@@ -77,8 +77,34 @@ func main() {
 		check(err, "text_analysis yt")
 		exit()
 		break
+	case "A":
+		var choiceFile string
+		var filename string
+		fmt.Print("Хочете розпарсити json файл [j] (повинен бути в ./text_analysis/json_files папці) чи txt [t] (повинно бути ./text_analysis/txt_files папці):")
+		_, err = fmt.Scanln(&choiceFile)
+		check(err, "analysis choiceFile")
+		switch choiceFile {
+		case "j":
+			fmt.Print("Назва файлу:")
+			_, err = fmt.Scanln(&filename)
+			check(err, "filename scan j")
+			err = text_analysis.JsonPrepoc(filename)
+			check(err, "jsonprepoc j analysis")
+			err = text_analysis.TextAnalysis(filename)
+			check(err, "text analysis, j")
+			exit()
+			break
+		case "t":
+			fmt.Print("Назва файлу:")
+			_, err = fmt.Scanln(&filename)
+			check(err, "filename scan t")
+			err = text_analysis.TextAnalysis(filename)
+			check(err, "text analysis, t")
+			exit()
+			break
+		}
 	default:
-		check(errors.New("Неправильний вибір, напишіть T або Y для вибора між Телеграмом та Ютубом"), "mistype of type of parse")
+		check(errors.New("Неправильний вибір, напишіть T, Y або А для вибора між Телеграмом та Ютубом"), "mistype of type of parse")
 	}
 }
 

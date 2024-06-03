@@ -104,7 +104,6 @@ func codeAsk(ctx context.Context, sentCode *tg.AuthSentCode) (string, error) {
 	code = strings.ReplaceAll(code, "\n", "")
 	return code, nil
 }
-
 func MessageFetch(ctx context.Context, client *tg.Client, username string) ([]*tg.Message, error) {
 	// Search for a public chat by username
 	chat, err := client.ContactsResolveUsername(ctx, username)
@@ -115,22 +114,27 @@ func MessageFetch(ctx context.Context, client *tg.Client, username string) ([]*t
 
 	var limit int
 
-	fmt.Print("Ліміт повідомлень? (Максимум 100000):")
+	fmt.Print("Ліміт повідомлень? (Максимум 2700):")
 	_, err = fmt.Scanln(&limit)
-	if limit > 100000 {
-		return nil, errors.New("Ліміт перевищує 100000, неможливо передати повідомлення")
+	if limit > 2700 {
+		return nil, errors.New("Ліміт перевищує 2700, неможливо передати повідомлення")
 	}
 	messages := make([]*tg.Message, 0)
 	var offsetID int
-	for {
+	fmt.Println("Фетчинг повідомлень...")
+	for len(messages) < limit {
+		fetchLimit := 100
+		if limit-len(messages) < 100 {
+			fetchLimit = limit - len(messages)
+		}
+
 		history, err := client.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
-			//return messages, nil
 			Peer: &tg.InputPeerChannel{
 				ChannelID:  channel.ID,
 				AccessHash: channel.AccessHash,
 			},
 			AddOffset:  0,
-			Limit:      limit,
+			Limit:      fetchLimit,
 			MaxID:      0,
 			MinID:      0,
 			OffsetID:   offsetID,
@@ -151,12 +155,12 @@ func MessageFetch(ctx context.Context, client *tg.Client, username string) ([]*t
 			}
 		}
 
-		if len(messages) < limit {
-			break
+		if len(messageClasses.Messages) == 0 {
+			break // No more messages to fetch
 		}
 
 		// Set the offset ID to the ID of the last message fetched
-		offsetID = messages[len(messages)-1].ID
+		offsetID = messageClasses.Messages[len(messageClasses.Messages)-1].(*tg.Message).ID
 	}
 	return messages, nil
 }

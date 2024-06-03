@@ -21,7 +21,7 @@ func TextAnalysis(filename string) error {
 	}
 
 	fp := filepath.Join(root, "text_analysis", "txt_files", filename+".txt")
-	file, err := os.OpenFile(fp, os.O_CREATE|os.O_RDWR, 0700)
+	file, err := os.Open(fp)
 	if err != nil {
 		log.Fatalf("The file %s.txt was not found in the directory 'txt_files'.\n", filename)
 	}
@@ -71,24 +71,18 @@ func TextAnalysis(filename string) error {
 
 	N_1N := float64(N1) / float64(N)
 	N_2N := float64(N2) / float64(N)
-	RR := 0.0
-	for _, nf := range normFreq {
-		RR += math.Pow(nf, 2)
-	}
-	RR /= float64(N)
 	entropy := 0.0
 	for _, nf := range normFreq {
 		entropy -= nf * math.Log(nf)
 	}
 
 	fmt.Println("-------------------------")
-	fmt.Printf("text length %d\n", N)
-	fmt.Printf("hapax legomena %d\n", N1)
-	fmt.Printf("dis legomena %d\n", N2)
-	fmt.Printf("hapax legomena fraction %.4f\n", N_1N)
-	fmt.Printf("dis legomena fraction %.4f\n", N_2N)
-	fmt.Printf("repeat rate %.4f\n", RR)
-	fmt.Printf("entropy %.4f\n", entropy)
+	fmt.Printf("Довжина тексту: %d\n", N)
+	fmt.Printf("Гапакс Легомена: %d\n", N1)
+	fmt.Printf("Дис Легомена: %d\n", N2)
+	fmt.Printf("Рівняння Гапакс Легомена: %.4f\n", N_1N)
+	fmt.Printf("Рівняння Дис Легомена: %.4f\n", N_2N)
+	fmt.Printf("Ентропія: %.4f\n", entropy)
 	fmt.Println("-------------------------")
 	return nil
 }
