@@ -1,6 +1,7 @@
 package yt_parse
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,9 +18,26 @@ import (
 	"strings"
 )
 
-func YoutubeParse(ctx context.Context) ([]byte, error) {
+type Comment struct {
+	ID    string `json:"id"`
+	Date  string `json:"date"`
+	Actor string `json:"actor"`
+	Text  string `json:"text"`
+}
+type MessagesData struct {
+	Title    string    `json:"title"`
+	VideoURL string    `json:"video_url"`
+	Comments []Comment `json:"messages"`
+}
 
-	b, err := os.ReadFile("ytclient_secret.json")
+func YoutubeParse(ctx context.Context) ([]byte, error) {
+	var videoId string
+	absPath, err := filepath.Abs(".")
+	if err != nil {
+		return nil, err
+	}
+	credDir := filepath.Join(absPath, ".credentials")
+	b, err := os.ReadFile(filepath.Join(credDir, "ytclient_secret.json"))
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -38,35 +56,86 @@ func YoutubeParse(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	jsonFile, err := commentsListByID(service, []string{"snippet"}, "M4eU50ERUDk")
+	rd := bufio.NewReader(os.Stdin)
+	_, err = rd.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+	fmt.Print("Введіть url для відео ютуб коментарії з якого хочете взяти:")
+	_, err = fmt.Scanln(&videoId)
+	if err != nil {
+		return nil, err
+	}
+	videoId, err = video_url_Parse(videoId)
+	if err != nil {
+		return nil, err
+	}
+	r, err := commentsListByID(service, []string{"snippet"}, videoId)
+	if err != nil {
+		return nil, err
+	}
+	jsonFile, err := MarshalJSON(r)
 	if err != nil {
 		return nil, err
 	}
 	return jsonFile, nil
 }
 
-func url_Parse(url string) (string, error) {
+func MarshalJSON(response *youtube.CommentThreadListResponse) ([]byte, error) {
+	// Convert the input messages to our defined Message struct
+	var convertedComments []Comment
+	for _, m := range response.Items {
+		convertedComments = append(convertedComments, Comment{
+			ID:    fmt.Sprintf("%v", m.Snippet.TopLevelComment.Id),
+			Date:  fmt.Sprintf("%v", m.Snippet.TopLevelComment.Snippet.PublishedAt),
+			Actor: fmt.Sprintf("%v", m.Snippet.TopLevelComment.Snippet.AuthorDisplayName),
+			Text:  fmt.Sprintf("%v", m.Snippet.TopLevelComment.Snippet.TextOriginal),
+		})
+	}
+
+	// Wrap the messages with the outer structure
+	data := MessagesData{
+		Title:    "Youtube",
+		VideoURL: fmt.Sprintf("https://www.youtube.com/watch?v=%v", response.Items[0].Snippet.VideoId),
+		Comments: convertedComments,
+	}
+
+	// Marshal the data to JSON
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonBytes, nil
+
+}
+
+func token_url_Parse(url string) (string, error) {
 	var code string
 
 	n, found := strings.CutPrefix(url, "http://localhost/?state=state-token&code=")
 	if !found {
-		return "", errors.New("префікс URL не знайдений, неможливий парсинг URL")
+		return "", errors.New("префікс URL для токена не знайдений, неможливий парсинг URL")
 	}
 	code, _, found = strings.Cut(n, "&scope=")
 	return code, nil
 }
 
-func commentsListByID(service *youtube.Service, part []string, videoID string) ([]byte, error) {
+func video_url_Parse(url string) (string, error) {
+	id, found := strings.CutPrefix(url, "https://www.youtube.com/watch?v=")
+	if !found {
+		return "", errors.New("Префікс неможливо було запарсити, так як його не знайдено. Надішліть правильний url")
+	}
+	return id, nil
+}
+
+func commentsListByID(service *youtube.Service, part []string, videoID string) (*youtube.CommentThreadListResponse, error) {
 	call := service.CommentThreads.List(part)
-	response, err := call.VideoId(videoID).Do()
+	response, err := call.MaxResults(1000).VideoId(videoID).Do()
 	if err != nil {
 		return nil, err
 	}
-	j, err := response.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+	return response, nil
 }
 
 // getClient uses a Context and Config to retrieve a Token
@@ -106,7 +175,7 @@ func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token,
 		return nil, errors.New(fmt.Sprintf("Unable to read authorization code %v", err))
 	}
 
-	code, err = url_Parse(code)
+	code, err = token_url_Parse(code)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("code couldn't be parsed: %v\n", err))
 	}
@@ -121,6 +190,9 @@ func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token,
 // It returns the generated credential path/filename.
 func tokenCacheFile() (string, error) {
 	absPath, err := filepath.Abs(".")
+	if err != nil {
+		return "", err
+	}
 	tokenCacheDir := filepath.Join(absPath, ".credentials")
 	err = os.MkdirAll(tokenCacheDir, 0700)
 	if err != nil {

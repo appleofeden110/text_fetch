@@ -3,7 +3,6 @@ package file_create
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -18,7 +17,6 @@ func JSON_parse(name string, jb []byte) error {
 		return errors.New(fmt.Sprintf("помилка опрацювання json файла: %v", err))
 	}
 	defer f.Close()
-	fmt.Println(string(jb))
 	_, err = f.Write(jb)
 	if err != nil {
 		return errors.New(fmt.Sprintf("Помилка вписання в файл json: %v", err))
@@ -28,11 +26,5 @@ func JSON_parse(name string, jb []byte) error {
 	if _, err = f.Seek(0, 0); err != nil {
 		return errors.New(fmt.Sprintf("Помилка переміщення покажчика файлу: %v", err))
 	}
-
-	readBytes, err := io.ReadAll(f)
-	if err != nil {
-		return errors.New(fmt.Sprintf("Помилка прочитання файла: %v", err))
-	}
-	fmt.Println(string(readBytes))
 	return nil
 }

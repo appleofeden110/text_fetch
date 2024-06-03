@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -22,8 +23,8 @@ var (
 
 func check(err error, msg ...string) {
 	if err != nil {
-		log.Fatalf("%v: %v", msg, err)
-		return
+		log.Printf("ПОМИЛКА:\n%v: %v\n", msg, err)
+		exit()
 	}
 }
 
@@ -49,20 +50,42 @@ func main() {
 		check(err, "tg_parse")
 		jBytes, errJ := tg_parse.MarshalJSON(msgs)
 		check(errJ, "MARSHAL JSON")
-		err = file_create.JSON_parse("test_tg", jBytes)
+		var filename string
+		fmt.Print("Введіть бажану назву json та txt файла:\n")
+		_, err = fmt.Scanln(&filename)
+		check(err, "scan yt")
+		err = file_create.JSON_parse(fmt.Sprintf("%v_tg", filename), jBytes)
 		check(err, "json_parse tg")
-		err = text_analysis.JsonPrepoc("test_tg")
+		err = text_analysis.JsonPrepoc(fmt.Sprintf("%v_tg", filename))
 		check(err, "json_preproc tg")
-		err = text_analysis.TextAnalysis("test_tg")
+		err = text_analysis.TextAnalysis(fmt.Sprintf("%v_tg", filename))
 		check(err, "text_analysis tg")
+		exit()
 		break
 	case "Y":
 		jsonBytes, err := yt_parse.YoutubeParse(ctx)
 		check(err, "youtube parse")
-		err = file_create.JSON_parse("test_yt", jsonBytes)
-		check(err, "json_parse")
+		var filename string
+		fmt.Print("Введіть бажану назву json та txt файла:\n")
+		_, err = fmt.Scanln(&filename)
+		check(err, "scan yt")
+		err = file_create.JSON_parse(fmt.Sprintf("%v_yt", filename), jsonBytes)
+		check(err, "json_parse yt")
+		err = text_analysis.JsonPrepoc(fmt.Sprintf("%v_yt", filename))
+		check(err, "json_prepoc yt")
+		err = text_analysis.TextAnalysis(fmt.Sprintf("%v_yt", filename))
+		check(err, "text_analysis yt")
+		exit()
 		break
 	default:
 		check(errors.New("Неправильний вибір, напишіть T або Y для вибора між Телеграмом та Ютубом"), "mistype of type of parse")
 	}
+}
+
+func exit() {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Нажміть Enter для виходу з програми...")
+	_, err := reader.ReadString('\n')
+	check(err, "readall stdin")
+	return
 }

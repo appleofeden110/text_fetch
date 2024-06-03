@@ -12,18 +12,21 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
 type Message struct {
-	ID    int    `json:"id"`
-	Date  string `json:"date"`
-	Actor string `json:"actor"`
-	Text  string `json:"text"`
+	ID      int    `json:"id"`
+	Date    string `json:"date"`
+	Actor   string `json:"actor"`
+	ReplyId string `json:"reply_to_message_id"`
+	Text    string `json:"text"`
 }
 
 type MessagesData struct {
-	Name     string    `json:"name"`
+	Title    string    `json:"title"`
+	ChatName string    `json:"chat_name"`
 	Messages []Message `json:"messages"`
 }
 
@@ -112,24 +115,14 @@ func MessageFetch(ctx context.Context, client *tg.Client, username string) ([]*t
 
 	var limit int
 
-	fmt.Print("Ліміт повідомлень? (Максимум 2000):")
+	fmt.Print("Ліміт повідомлень? (Максимум 100000):")
 	_, err = fmt.Scanln(&limit)
-	if limit > 2000 {
-		return nil, errors.New("Ліміт перевищує 2000, неможливо передати повідомлення")
+	if limit > 100000 {
+		return nil, errors.New("Ліміт перевищує 100000, неможливо передати повідомлення")
 	}
-	//peer := &tg.InputPeerChannel{channel.ID, channel.AccessHash}
-	//dgs, err := client.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{Peer: peer, Limit: limit - 1})
-	//if err != nil {
-	//	return nil, err
-	//}
-	//messageClass, ok := dgs.(*tg.MessagesChannelMessages)
-	//if !ok {
-	//	return nil, errors.New(fmt.Sprintf("unexpected msg class %T", dgs))
-	//}
-	//
 	messages := make([]*tg.Message, 0)
 	var offsetID int
-	for i := 0; i < 20; i++ {
+	for {
 		history, err := client.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
 			//return messages, nil
 			Peer: &tg.InputPeerChannel{
@@ -167,35 +160,69 @@ func MessageFetch(ctx context.Context, client *tg.Client, username string) ([]*t
 	}
 	return messages, nil
 }
-
 func createAuthToken(e error) (map[string]string, error) {
-	//checking if the file exists, if not, creating new file with data in it
-	f, err := os.OpenFile("auth_token.json", os.O_RDWR|os.O_CREATE, 0600)
+	// Checking if the file exists, if not, creating a new file with data in it
+	absPath, err := filepath.Abs(".")
+	if err != nil {
+		return nil, err
+	}
+	filePath := filepath.Join(absPath, ".credentials", "auth_token.json")
+	f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("помилка з відкриттям файлу для авторизація: %v\n", err))
 	}
 	defer f.Close()
+
 	b, err := io.ReadAll(f)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("помилка прочитання файла: %v\n", err))
 	}
-	if string(b) == "" {
+
+	// If the file is empty, prompt the user for credentials
+	if len(b) == 0 {
 		fmt.Print("Введіть свій номер телефону для входу в телеграм:")
 		_, err = fmt.Scanln(&phone)
+		if err != nil {
+			return nil, err
+		}
+
 		if errors.Is(e, auth.ErrPasswordNotProvided) {
 			fmt.Print("Введіть пароль (тільки якщо у вас включена 2-factor auth):")
 			_, err = fmt.Scanln(&password)
+			if err != nil {
+				return nil, err
+			}
 		}
+
+		// Truncate the file before writing new content
+		err = f.Truncate(0)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("помилка з truncate файлу для авторизації: %v\n", err))
+		}
+
+		// Move the file pointer to the beginning before writing
+		_, err = f.Seek(0, 0)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("помилка з seek файлу для авторизації: %v\n", err))
+		}
+
 		_, err := f.Write([]byte(fmt.Sprintf(`{"phone":"%v","password":"%v"}`, phone, password)))
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("помилка з написанням файлу для авторизації: %v\n", err))
 		}
+
+		// Move the file pointer to the beginning before reading the new content
+		_, err = f.Seek(0, 0)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("помилка з seek файлу для прочитання: %v\n", err))
+		}
+
 		b, err = io.ReadAll(f)
-		fmt.Println(string(b))
 		if err != nil {
 			return nil, errors.New(fmt.Sprintf("Помилка з прочитанням написаного файла"))
 		}
 	}
+
 	authCred := make(map[string]string)
 	err = json.Unmarshal(b, &authCred)
 	if err != nil {
@@ -203,22 +230,23 @@ func createAuthToken(e error) (map[string]string, error) {
 	}
 	return authCred, nil
 }
-
 func MarshalJSON(messages []*tg.Message) ([]byte, error) {
 	// Convert the input messages to our defined Message struct
 	var convertedMessages []Message
 	for _, m := range messages {
+		postAuthor, _ := m.GetPostAuthor()
 		convertedMessages = append(convertedMessages, Message{
-			ID:    m.ID,
-			Date:  fmt.Sprintf("%v", m.Date),
-			Actor: fmt.Sprintf("%v", m.FromID),
-			Text:  m.Message,
+			ID:    m.GetID(),
+			Date:  fmt.Sprintf("%v", m.GetDate),
+			Actor: fmt.Sprintf("%v", postAuthor),
+			Text:  m.GetMessage(),
 		})
 	}
 
 	// Wrap the messages with the outer structure
 	data := MessagesData{
-		Name:     fmt.Sprintf("%v", messages[0].FromID),
+		Title:    "Telegram",
+		ChatName: fmt.Sprintf("%v", messages[0].ID),
 		Messages: convertedMessages,
 	}
 

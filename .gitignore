@@ -2,4 +2,5 @@
 auth_token.json
 *.exe
 *.bat
-ytclient_secret.json
+.credentials/ytclient_secret.json
+.credentials/user_cred.json

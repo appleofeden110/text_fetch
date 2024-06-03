@@ -76,7 +76,6 @@ func TextAnalysis(filename string) error {
 		RR += math.Pow(nf, 2)
 	}
 	RR /= float64(N)
-
 	entropy := 0.0
 	for _, nf := range normFreq {
 		entropy -= nf * math.Log(nf)
