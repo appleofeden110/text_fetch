@@ -46,9 +46,9 @@ func main() {
 	check(err, "choice read error")
 	switch choice {
 	case "T":
-		msgs, err := tg_parse.TelegramParse(ctx, tg_api_id, tg_api_hash)
+		msgs, chatName, err := tg_parse.TelegramParse(ctx, tg_api_id, tg_api_hash)
 		check(err, "tg_parse")
-		jBytes, errJ := tg_parse.MarshalJSON(msgs)
+		jBytes, errJ := tg_parse.MarshalJSON(msgs, chatName)
 		check(errJ, "MARSHAL JSON")
 		var filename string
 		fmt.Print("Введіть бажану назву json та txt файла:\n")

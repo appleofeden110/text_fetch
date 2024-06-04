@@ -36,7 +36,7 @@ var (
 	password      string
 )
 
-func TelegramParse(ctx context.Context, api_id int, api_hash string) ([]*tg.Message, error) {
+func TelegramParse(ctx context.Context, api_id int, api_hash string) ([]*tg.Message, string, error) {
 	Messages := make([]*tg.Message, 0)
 
 	api_hash = os.Getenv("API_APP_HASH")
@@ -88,10 +88,10 @@ func TelegramParse(ctx context.Context, api_id int, api_hash string) ([]*tg.Mess
 		}
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return Messages, nil
+	return Messages, chat_username, nil
 }
 
 func codeAsk(ctx context.Context, sentCode *tg.AuthSentCode) (string, error) {
@@ -191,7 +191,7 @@ func createAuthToken(e error) (map[string]string, error) {
 		}
 
 		if errors.Is(e, auth.ErrPasswordNotProvided) {
-			fmt.Print("Введіть пароль (тільки якщо у вас включена 2-factor auth):")
+			fmt.Print("Введіть пароль (тільки якщо у вас включена 2-factor auth) або введіть na (якщо 2-factor auth виключена):")
 			_, err = fmt.Scanln(&password)
 			if err != nil {
 				return nil, err
@@ -234,7 +234,7 @@ func createAuthToken(e error) (map[string]string, error) {
 	}
 	return authCred, nil
 }
-func MarshalJSON(messages []*tg.Message) ([]byte, error) {
+func MarshalJSON(messages []*tg.Message, chatName string) ([]byte, error) {
 	// Convert the input messages to our defined Message struct
 	var convertedMessages []Message
 	for _, m := range messages {
@@ -250,7 +250,7 @@ func MarshalJSON(messages []*tg.Message) ([]byte, error) {
 	// Wrap the messages with the outer structure
 	data := MessagesData{
 		Title:    "Telegram",
-		ChatName: fmt.Sprintf("%v", messages[0].ID),
+		ChatName: fmt.Sprintf("%v", chatName),
 		Messages: convertedMessages,
 	}
 

@@ -30,8 +30,11 @@ type MessagesData struct {
 	Comments []Comment `json:"messages"`
 }
 
+var o bool
+
 func YoutubeParse(ctx context.Context) ([]byte, error) {
 	var videoId string
+	o = false
 	absPath, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err
@@ -56,10 +59,12 @@ func YoutubeParse(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	rd := bufio.NewReader(os.Stdin)
-	_, err = rd.ReadString('\n')
-	if err != nil {
-		return nil, err
+	if o {
+		rd := bufio.NewReader(os.Stdin)
+		_, err = rd.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
 	}
 	fmt.Print("Введіть url для відео ютуб коментарії з якого хочете взяти:")
 	_, err = fmt.Scanln(&videoId)
@@ -162,6 +167,7 @@ func getClient(ctx context.Context, config *oauth2.Config) (*http.Client, error)
 // getTokenFromWeb uses Config to request a Token.
 // It returns the retrieved Token.
 func getTokenFromWeb(ctx context.Context, config *oauth2.Config) (*oauth2.Token, error) {
+	o = true
 	var err error
 	tok := new(oauth2.Token)
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
